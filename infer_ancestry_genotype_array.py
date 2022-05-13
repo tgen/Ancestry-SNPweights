@@ -13,15 +13,17 @@ def parse_output(file):
             # [:-num_pop]
             return a[-4:]
 
+
 def main(args):
-    vcf_path = args.vcf_path
-    if not os.path.isfile(vcf_path):
-        sys.exit('vcf file not exist: {}'.format(vcf_path))
-    vcf_name = os.path.basename(vcf_path)
+    # genotype report file from Illumina Genome Studio
+    genotype_path = args.genotype_path
+    if not os.path.isfile(genotype_path):
+        sys.exit('array genotype report file not exist: {}'.format(genotype_path))
+    genotype_name = os.path.basename(genotype_path)
 
     # infer ancestry using 4 Population module 'snpwt.NA' including Native American: 'NA'
-    predpc_path = os.path.join(args.working_dir, '.'.join([vcf_name.split('.')[0], 'NA', 'predpc']))
-    cmd_infer_ancestry = 'python {} --vcf_path {} --working_dir {}'.format(args.ancestry_script, vcf_path, args.working_dir)
+    predpc_path = os.path.join(args.working_dir, '.'.join([genotype_name.split('.')[0], 'NA', 'predpc']))
+    cmd_infer_ancestry = 'python {} --genotype_path {} --working_dir {}'.format(args.ancestry_script, genotype_path, args.working_dir)
     # run cmd_infer_ancestry
     #if not os.path.isfile(predpc_path) or os.path.getsize(predpc_path) == 0:
     proc.run(cmd_infer_ancestry, shell=True)
@@ -32,9 +34,9 @@ def main(args):
         sys.exit('infer_ancestry {} failed'.format('NA module'))
 
     # infer ancestry using 4 population module 'snpwt.AS' including ASIAN: 'AS'
-    predpc_path = os.path.join(args.working_dir, '.'.join([vcf_name.split('.')[0], 'AS', 'predpc']))
-    cmd_infer_ancestry = 'python {} --vcf_path {} --working_dir {} --snpwt_path {} --snpwt_bed_path {}'.format(args.ancestry_script,
-                                      vcf_path, args.working_dir, args.snpwt_as_path, args.snpwt_as_bed_path)
+    predpc_path = os.path.join(args.working_dir, '.'.join([genotype_name.split('.')[0], 'AS', 'predpc']))
+    cmd_infer_ancestry = 'python {} --genotype_path {} --working_dir {} --snpwt_path {} --snpwt_bed_path {}'.format(args.ancestry_script,
+                                      genotype_path, args.working_dir, args.snpwt_as_path, args.snpwt_as_bed_path)
     # run cmd_infer_ancestry
     #if not os.path.isfile(predpc_path) or os.path.getsize(predpc_path) == 0:
     proc.run(cmd_infer_ancestry, shell=True)
@@ -45,7 +47,7 @@ def main(args):
         sys.exit('infer_ancestry {} failed'.format('AS module'))
 
     # write out csv file
-    out_file = '.'.join(vcf_name.split('.')[:1]+['predpc.csv'])
+    out_file = '.'.join(genotype_name.split('.')[:1]+['predpc.csv'])
     f_out = open(out_file, 'w')
     # header line
     header = ['AFR', 'EUR', 'SAS', 'EAS', 'NAT', 'Ancestry']
@@ -88,14 +90,18 @@ def main(args):
     f_out.write(','.join(line) + '\n')
     f_out.close()
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="infer_ancestry_vcf.py", description="infer ancestry using a vcf file.")
-    parser.add_argument('-v', '--vcf_path', required=True, help="A vcf file path")
+    parser = argparse.ArgumentParser(prog="make_phoenix_json", description="make json file for phoenix pipeline.")
+    parser.add_argument('-g', '--genotype_path', required=True, help="An array genotype report file path from Illumina genome studio")
     parser.add_argument('-o', '--out_dir', default="/home/gzhang/scratch/rodriguez/out", help="Output directory")
-    parser.add_argument('-a', '--ancestry_script', default="/home/gzhang/compute/github/Ancestry-SNPweights/snpwt_ancestry.py", help="ancestry estimate script")
+    parser.add_argument('-a', '--ancestry_script', default="/home/gzhang/compute/github/Ancestry-SNPweights/snpwt_ancestry.py",
+                        help="ancestry estimate script")
     parser.add_argument('-w', '--working_dir',  default="/home/gzhang/scratch/ancestry", help="Scratch directory")
-    parser.add_argument('--snpwt_as_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/snpwt.AS", help="snp weights file for AS module")
-    parser.add_argument('--snpwt_as_bed_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/snpwt_AS.hg38.bed.gz", help="snp weights bed file for AS in hg38")
+    parser.add_argument('--snpwt_as_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/snpwt.AS",
+                        help="snp weights file for AS module")
+    parser.add_argument('--snpwt_as_bed_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/snpwt_AS.hg38.bed.gz",
+                        help="snp weights bed file for AS in hg38")
 
     args, remaining_argv = parser.parse_known_args()
 

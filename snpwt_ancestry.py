@@ -19,10 +19,10 @@ def complement(a1, a2):
 
 def genotype(marker_id, a1, a2, ref, alt):
     # sanity check
-    if len(ref) == 1 and len(alt) == 1 and (a1 == 'I' or a1 == 'D'):
-        sys.exit('marker {} is a SNP but genotype is a INDEL'.format(marker_id))
-    if (len(ref) > 1 or len(alt) > 1) and not (a1 == 'I' or a1 == 'D'):
-        sys.exit('marker {} is a INDEL but genotype is a SNP'.format(marker_id))
+    #if len(ref) == 1 and len(alt) == 1 and (a1 == 'I' or a1 == 'D'):
+    #    print('marker {} is a SNP but genotype is a INDEL'.format(marker_id), file=sys.stderr)
+    #if (len(ref) > 1 or len(alt) > 1) and not (a1 == 'I' or a1 == 'D'):
+    #    print('marker {} is a INDEL but genotype is a SNP'.format(marker_id), file=sys.stderr)
 
     gt = None
     if len(ref)>len(alt):  # DEL
@@ -70,9 +70,9 @@ def genotype(marker_id, a1, a2, ref, alt):
 
 
 def report2vcf(args):
-    # read map .gz file
+    # read map file
     markers = {}
-    with gzip.open(args.gda_marker_path, 'rt') as f:
+    with open(args.gda_marker_path, 'r') as f:
         for line in f:
             x = line.strip().split()
             markers[x[3]] = x
@@ -102,6 +102,9 @@ def report2vcf(args):
             a = line.strip().split()
             marker_id = a[0]
             a1, a2 = a[2], a[3]
+            if a1=='I' or a1=='D' or a2=='I' or a2=='D':
+                # discard Indel markers, snpweights does not use indel markers
+                continue
             if marker_id not in markers or a1=='-' or a2=='-':
                 continue
             m = markers[marker_id]
@@ -207,13 +210,18 @@ def call_variant(bam_path, ref_file, annot_file, working_dir):
     vcf_name = '.'.join([base_name, 'vcf'])
     vcf_path = os.path.join(working_dir, vcf_name)
 
-    cmd_vcf  = "samtools mpileup -q 30 -Q 20 -v -f {0} -l {1} {2} | ".format(ref_file, annot_file, bam_path)
-    cmd_vcf += "bcftools call -c -Ov | bcftools filter -e 'ALT=\".\"' | "
-    cmd_vcf += "bcftools annotate -c CHROM,FROM,TO,ID -a {0} > {1}".format(annot_file, vcf_path)
+    # 'vcfutils.pl -p' will print filtered variants.
+    cmd_vcf  = "bcftools mpileup --redo-BAQ --min-BQ 30 --per-sample-mF "
+    cmd_vcf += "--annotate FORMAT/AD,FORMAT/ADF,FORMAT/ADR,FORMAT/DP,FORMAT/SP,INFO/AD,INFO/ADF,INFO/ADR "
+    cmd_vcf += "-f {0} -T {1} -Ou {2} | ".format(ref_file, annot_file, bam_path)
+    cmd_vcf += "bcftools call -mv -p 0.05 -Ov | bcftools filter -e 'ALT=\".\"' | "
+    cmd_vcf += "bcftools norm -m-any -Ov | bcftools norm -Ov --check-ref wx -f {0} | ".format(ref_file)
+    cmd_vcf += "vcfutils.pl varFilter -d 18 -w 1 -W 3 -a 1 -1 0.05 -2 0.05 -3 0.05 -4 0.05 -e 0.05 | "
+    cmd_vcf += "bcftools annotate -c CHROM,FROM,TO,ID -a {0} -Ov -o {1} - ".format(annot_file, vcf_path)
 
     # run cmd_vcf
-    if not os.path.isfile(vcf_path):
-        proc.run(cmd_vcf, shell=True)
+    #if not os.path.isfile(vcf_path):
+    proc.run(cmd_vcf, shell=True)
 
     if os.path.isfile(vcf_path):
         return vcf_path
@@ -229,8 +237,8 @@ def subset_variant(vcf_path, snpwt_ref, annot_file, working_dir):
     cmd_vcf2 += "bcftools annotate -c CHROM,FROM,TO,ID -a {0} > {1}".format(annot_file, vcf2_path)
 
     # run cmd_vcf2
-    if not os.path.isfile(vcf2_path):
-        proc.run(cmd_vcf2, shell=True)
+    #if not os.path.isfile(vcf2_path):
+    proc.run(cmd_vcf2, shell=True)
 
     if os.path.isfile(vcf2_path):
         return vcf2_path
@@ -243,8 +251,8 @@ def vcf_to_eigenstrat(vcf2eigenstart_py, vcf_path):
     cmd_geno  = "python2 {0} -v {1} -o {2}".format(vcf2eigenstart_py, vcf_path, geno_base_path)
 
     # run cmd_geno
-    if not os.path.isfile(geno_base_path+'.geno'):
-        proc.run(cmd_geno, shell=True)
+    #if not os.path.isfile(geno_base_path+'.geno'):
+    proc.run(cmd_geno, shell=True)
 
     if os.path.isfile(geno_base_path+'.geno'):
         return geno_base_path
@@ -264,8 +272,8 @@ def infer_ancestry(ancestry_py, geno_base_path, snpwt_path):
     cmd_snpwt = "python2 {0} --par {1}".format(ancestry_py, par_file)
 
     # run cmd_snpwt
-    if not os.path.isfile(geno_base_path+'.predpc'):
-        proc.run(cmd_snpwt, shell=True)
+    #if not os.path.isfile(geno_base_path+'.predpc'):
+    proc.run(cmd_snpwt, shell=True)
 
     if os.path.isfile(geno_base_path+'.predpc'):
         return geno_base_path+'.predpc'
@@ -274,9 +282,18 @@ def infer_ancestry(ancestry_py, geno_base_path, snpwt_path):
 
 
 def main(args):
-    # input: Illumina GDA array report file
+    # input: Illumina GDA array report file, one sampleID per array genotype report file
     if args.genotype_path is not None:
-        plink_base_path = report_to_plink(args)
+        # convert Illumina Array report file to vcf file in hg38
+        vcf_path = os.path.join(args.working_dir, '.'.join(os.path.basename(args.genotype_path).split('.')[:-1]) + '.hg38.vcf.gz')
+        if not os.path.isfile(vcf_path):  # convert once
+            args.vcf_path = report2vcf(args)
+        else:
+            args.vcf_path = vcf_path
+
+    # input: plink genotype file, could contain multiple samples. Illumina genome studio has plugins to export in plink format
+    # To do: keep a workflow entry here, it needs to work out later
+    if args.plink_path is not None:
         # convert plink to eigenstrat format
         geno_base_path = plink_to_eigenstrat(plink_base_path)
         # infer ancestry
@@ -285,61 +302,44 @@ def main(args):
 
     # input: bam_path, and it needs to call variants
     if args.bam_path is not None:
-        bam_name = os.path.basename(bam_path)
-        base_name = '.'.join(bam_name.split('.')[:-1])
-        vcf_name = '.'.join([base_name, 'vcf'])
-        vcf_path = os.path.join(working_dir, vcf_name)
+        vcf_name = '.'.join(os.path.basename(args.bam_path).split('.')[:-1]) + '.vcf'
+        vcf_path = os.path.join(args.working_dir, vcf_name)
         if not os.path.isfile(vcf_path):  # call variants once
-            vcf_path = call_variant(args.bam_path, args.ref_path, args.snpwt_bed_path, args.working_dir)
-        if args.snpwt_path.endswith('.AS'):
-            # subset for snpwt.AS: ASIAN reference panel, order: SAS EAS AFR EUR
-            snpwt_ref = 'AS'
-            vcf2_path = subset_variant(vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
-            # convert vcf to eigenstrat
-            geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
-            # infer ancestry
-            predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
+            args.vcf_path = call_variant(args.bam_path, args.ref_path, args.snpwt_bed_path, args.working_dir)
         else:
-            # subset for snpwt.NA: Native American reference panel, order: AFR EUR EAS NAT
-            snpwt_ref = 'NA'
-            vcf2_path = subset_variant(vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
-            # convert vcf to eigenstrat
-            geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
-            # infer ancestry
-            predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
-        print(predpc_path)
+            args.vcf_path = vcf_path
 
-    # input: vcf_path from phoenix pipeline, and it needs to extract subset/vcf: snpwt_bed
-    if args.vcf_path is not None:
-        if args.snpwt_path.endswith('.AS'):
-            # subset for snpwt.AS: ASIAN reference panel, order: SAS EAS AFR EUR
-            snpwt_ref = 'AS'
-            vcf2_path = subset_variant(args.vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
-            # convert vcf to eigenstrat
-            geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
-            # infer ancestry
-            predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
-        else:
-            # subset for snpwt.NA: Native American reference panel, order: AFR EUR EAS NAT
-            snpwt_ref = 'NA'
-            vcf2_path = subset_variant(args.vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
-            # convert vcf to eigenstrat
-            geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
-            # infer ancestry
-            predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
-        print(predpc_path)
+    # infer ancestry
+    # input: vcf_path from phoenix pipeline, and it needs to extract subset/vcf by snpwt_bed
+    if args.snpwt_path.endswith('.AS'):
+        # subset for snpwt.AS: ASIAN reference panel, order: SAS EAS AFR EUR
+        snpwt_ref = 'AS'
+        vcf2_path = subset_variant(args.vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
+        # convert vcf to eigenstrat
+        geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
+        # infer ancestry
+        predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
+    else:
+        # subset for snpwt.NA: Native American reference panel, order: AFR EUR EAS NAT
+        snpwt_ref = 'NA'
+        vcf2_path = subset_variant(args.vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
+        # convert vcf to eigenstrat
+        geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
+        # infer ancestry
+        predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
+    print(predpc_path)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="snpwt_ancestry", description="infer ancestry with germline bam file for WES/WGS.")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--genotype_path', help="An array genotype report file from Illumina Genome Studio")
-    group.add_argument('--bam_path', help="A alignment file in bam or cram format")
     group.add_argument('--vcf_path', help="A variant call file in vcf format")
+    group.add_argument('--bam_path', help="A alignment file in bam or cram format")
+    group.add_argument('--genotype_path', help="An array genotype report file from Illumina Genome Studio")
+    group.add_argument('--plink_path', help="A plink genotype file")
     parser.add_argument('--ref_path', default="/home/tgenref/homo_sapiens/grch38_hg38/hg38tgen/genome_reference/GRCh38tgen_decoy_alts_hla.fa")
-    parser.add_argument('--out_dir', default="/home/gzhang/scratch/rodriguez/out", help="Output directory")
-    parser.add_argument('--working_dir', default="/home/gzhang/scratch/rodriguez/scratch", help="Scratch directory")
-    parser.add_argument('--cohort', default="COHORIEN", help="Cohort name")
+    #parser.add_argument('--out_dir', default="/home/gzhang/scratch/rodriguez/out", help="Output directory")
+    parser.add_argument('--working_dir', default="/home/gzhang/scratch/ancestry", help="Scratch directory")
     parser.add_argument('--ancestry_exe', default="/home/gzhang/compute/github/Ancestry-SNPweights/SNPweights2.1/inferancestry.py", help="infer ancestry executable")
     parser.add_argument('--convertf_exe', default="/home/gzhang/compute/github/Ancestry-SNPweights/eigensoft/convertf", help="eigensoft convertf executable")
     parser.add_argument('--vcf2eigenstrat_exe', default="/home/gzhang/compute/github/Ancestry-SNPweights/gdc/vcf2eigenstrat.py", help="convert vcf to eigenstrat format")
@@ -351,6 +351,7 @@ if __name__ == "__main__":
     parser.add_argument('--vcf_header_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/header.b37.vcf", help="vcf header file in GRCh37 for GDA array")
     parser.add_argument('--samtools_exe', default="/home/gzhang/bin/samtools", help="samtools executable")
     parser.add_argument('--bcftools_exe', default="/home/gzhang/bin/bcftools", help="bcftools executable")
+    parser.add_argument('--vcfutils_exe', default="/home/gzhang/bin/vcfutils.pl", help="vcfutils.pl perl script")
     parser.add_argument('--plink_exe', default="/home/gzhang/bin/plink", help="plink executable")
     parser.add_argument('--picard_jar', default="/home/gzhang/bin/picard.jar", help="picard jar binary")
     parser.add_argument('--chain_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/b37ToHg38.over.chain", help="liftover chain file")
