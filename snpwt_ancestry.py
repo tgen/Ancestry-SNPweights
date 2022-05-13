@@ -281,10 +281,16 @@ def main(args):
         geno_base_path = plink_to_eigenstrat(plink_base_path)
         # infer ancestry
         predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
+        print(predpc_path)
 
-    # input: bam_path, and it needs to call variant
+    # input: bam_path, and it needs to call variants
     if args.bam_path is not None:
-        vcf_path = call_variant(args.bam_path, args.ref_path, args.snpwt_bed_path, args.working_dir)
+        bam_name = os.path.basename(bam_path)
+        base_name = '.'.join(bam_name.split('.')[:-1])
+        vcf_name = '.'.join([base_name, 'vcf'])
+        vcf_path = os.path.join(working_dir, vcf_name)
+        if not os.path.isfile(vcf_path):  # call variants once
+            vcf_path = call_variant(args.bam_path, args.ref_path, args.snpwt_bed_path, args.working_dir)
         if args.snpwt_path.endswith('.AS'):
             # subset for snpwt.AS: ASIAN reference panel, order: SAS EAS AFR EUR
             snpwt_ref = 'AS'
