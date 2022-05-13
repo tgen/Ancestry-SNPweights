@@ -279,12 +279,29 @@ def main(args):
         plink_base_path = report_to_plink(args)
         # convert plink to eigenstrat format
         geno_base_path = plink_to_eigenstrat(plink_base_path)
+        # infer ancestry
+        predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
 
     # input: bam_path, and it needs to call variant
     if args.bam_path is not None:
         vcf_path = call_variant(args.bam_path, args.ref_path, args.snpwt_bed_path, args.working_dir)
-        # convert vcf to eigenstrat
-        geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf_path)
+        if args.snpwt_path.endswith('.AS'):
+            # subset for snpwt.AS: ASIAN reference panel, order: SAS EAS AFR EUR
+            snpwt_ref = 'AS'
+            vcf2_path = subset_variant(vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
+            # convert vcf to eigenstrat
+            geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
+            # infer ancestry
+            predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
+        else:
+            # subset for snpwt.NA: Native American reference panel, order: AFR EUR EAS NAT
+            snpwt_ref = 'NA'
+            vcf2_path = subset_variant(vcf_path, snpwt_ref, args.snpwt_bed_path, args.working_dir)
+            # convert vcf to eigenstrat
+            geno_base_path = vcf_to_eigenstrat(args.vcf2eigenstrat_exe, vcf2_path)
+            # infer ancestry
+            predpc_path = infer_ancestry(args.ancestry_exe, geno_base_path, args.snpwt_path)
+        print(predpc_path)
 
     # input: vcf_path from phoenix pipeline, and it needs to extract subset/vcf: snpwt_bed
     if args.vcf_path is not None:
@@ -330,7 +347,7 @@ if __name__ == "__main__":
     parser.add_argument('--bcftools_exe', default="/home/gzhang/bin/bcftools", help="bcftools executable")
     parser.add_argument('--plink_exe', default="/home/gzhang/bin/plink", help="plink executable")
     parser.add_argument('--picard_jar', default="/home/gzhang/bin/picard.jar", help="picard jar binary")
-    parser.add_argument('--chain_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data//b37ToHg38.over.chain", help="liftover chain file")
+    parser.add_argument('--chain_path', default="/home/gzhang/compute/github/Ancestry-SNPweights/data/b37ToHg38.over.chain", help="liftover chain file")
 
     args, remaining_argv = parser.parse_known_args()
 
