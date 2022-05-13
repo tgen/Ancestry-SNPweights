@@ -39,7 +39,7 @@ gunzip snpwt.AS.gz
 
 ## Usage examples
 
-#### 1. VCF input for a single sample
+#### 1. VCF input in Hg38/GRCh38 for a single sample
 
 ```
 python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
@@ -47,7 +47,7 @@ python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
     -o /output/dirctory
 ```
 
-#### 2. Bam or cram input for a single sample
+#### 2. Bam or cram input in Hg38/GRCh38 for a single sample
 
 ```
 python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
@@ -55,7 +55,7 @@ python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
     -o /output/dirctory
 ```
 
-#### 3. Array genotype report input for a single sample
+#### 3. Array genotype report input in GRch37 for a single sample
 
 ```
 python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
@@ -63,7 +63,7 @@ python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
     -o /output/dirctory
 ```
 
-### 4. Plink data for a cohort of samples
+### 4. Plink input data for a cohort of samples
 
 ```
 To be implemented.
