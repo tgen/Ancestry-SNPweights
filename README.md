@@ -73,6 +73,11 @@ To be implemented.
 ## Output examples
 
 ```
+input file name:  <file_name_prefix>.vcf.gz
+output file name: <file_name_prefix>.predpc.csv
+
+Outputs:
+
 sample_1:
 AFR,EUR,SAS,EAS,NAT,Ancestry
 0.145,0.816,0.0,0.039,.,EUR
