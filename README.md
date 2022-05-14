@@ -63,7 +63,7 @@ python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
     -o /output/dirctory
 ```
 
-### 4. Plink input data for a cohort of samples
+#### 4. Plink input data for a cohort of samples
 
 ```
 To be implemented.
