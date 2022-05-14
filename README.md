@@ -69,3 +69,37 @@ python ~/compute/github/Ancestry-SNPweights/infer_ancestry_vcf.py \
 To be implemented.
 
 ```
+
+## Output examples
+
+```
+sample_1:
+AFR,EUR,SAS,EAS,NAT,Ancestry
+0.145,0.816,0.0,0.039,.,EUR
+
+sample_2:
+AFR,EUR,SAS,EAS,NAT,Ancestry
+0.853,0.147,0,0,.,AFR
+
+sample_3:
+AFR,EUR,SAS,EAS,NAT,Ancestry
+0.0,0.014,.,0.06,0.925,NAT
+
+Sample_4
+AFR,EUR,SAS,EAS,NAT,Ancestry
+0.074,0.502,.,0,0.424,Mix(EUR+NAT)
+
+Sample_5
+AFR,EUR,SAS,EAS,NAT,Ancestry
+0.35,0.479,.,0.171,0,Mix(EUR+AFR)
+
+Column keys:
+
+AFR: Affican
+EUR: Europian
+SAS: South Asian
+EAS: East Asian
+NAT: Native American
+
+Ancestry: Assigned population (>=0.8)
+```
